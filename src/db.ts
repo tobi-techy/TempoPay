@@ -1,8 +1,8 @@
-import Database from 'better-sqlite3'
+import { Database } from 'bun:sqlite'
 
 const db = new Database('tempopay.db')
 
-db.exec(`
+db.run(`
   CREATE TABLE IF NOT EXISTS requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     from_phone TEXT NOT NULL,
@@ -24,22 +24,21 @@ export interface PaymentRequest {
 }
 
 export function createRequest(from: string, to: string, amount: number, memo: string): number {
-  const result = db.prepare(
-    'INSERT INTO requests (from_phone, to_phone, amount, memo) VALUES (?, ?, ?, ?)'
-  ).run(from, to, amount, memo)
-  return result.lastInsertRowid as number
+  const result = db.run(
+    'INSERT INTO requests (from_phone, to_phone, amount, memo) VALUES (?, ?, ?, ?)',
+    [from, to, amount, memo]
+  )
+  return Number(result.lastInsertRowid)
 }
 
-export function getRequest(id: number): PaymentRequest | undefined {
-  return db.prepare('SELECT * FROM requests WHERE id = ?').get(id) as PaymentRequest | undefined
+export function getRequest(id: number): PaymentRequest | null {
+  return db.query('SELECT * FROM requests WHERE id = ?').get(id) as PaymentRequest | null
 }
 
 export function getPendingRequestsFor(phone: string): PaymentRequest[] {
-  return db.prepare(
-    'SELECT * FROM requests WHERE to_phone = ? AND status = ?'
-  ).all(phone, 'pending') as PaymentRequest[]
+  return db.query('SELECT * FROM requests WHERE to_phone = ? AND status = ?').all(phone, 'pending') as PaymentRequest[]
 }
 
 export function markRequestPaid(id: number) {
-  db.prepare('UPDATE requests SET status = ? WHERE id = ?').run('paid', id)
+  db.run('UPDATE requests SET status = ? WHERE id = ?', ['paid', id])
 }

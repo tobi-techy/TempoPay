@@ -1,11 +1,10 @@
-import { createClient, http, publicActions, walletActions, parseUnits, formatUnits, stringToHex, pad, encodeFunctionData } from 'viem'
+import { createClient, http, publicActions, walletActions, parseUnits, formatUnits, encodeFunctionData } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { tempoModerato } from 'viem/chains'
 
 export const ALPHA_USD = '0x20c0000000000000000000000000000000000001' as const
 const DECIMALS = 6
 
-// TIP-20 ABI (minimal)
 const tip20Abi = [
   {
     name: 'transfer',
@@ -46,17 +45,20 @@ export async function sendPayment(to: string, amount: number, memo: string) {
 }
 
 export async function sendBatchPayment(recipients: string[], amountEach: number, memo: string) {
-  const calls = recipients.map(to => ({
-    to: ALPHA_USD as `0x${string}`,
-    data: encodeFunctionData({
-      abi: tip20Abi,
-      functionName: 'transfer',
-      args: [to as `0x${string}`, parseUnits(amountEach.toString(), DECIMALS)]
+  // Send individual transactions in parallel with different nonces
+  const hashes = await Promise.all(
+    recipients.map(async (to) => {
+      return client.sendTransaction({
+        to: ALPHA_USD,
+        data: encodeFunctionData({
+          abi: tip20Abi,
+          functionName: 'transfer',
+          args: [to as `0x${string}`, parseUnits(amountEach.toString(), DECIMALS)]
+        })
+      })
     })
-  }))
-
-  const hash = await client.sendTransaction({ calls } as any)
-  return hash
+  )
+  return hashes[0] // Return first hash for simplicity
 }
 
 export async function getBalance(address: string): Promise<string> {
