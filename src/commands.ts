@@ -131,7 +131,9 @@ export async function handleCommand(rawFrom: string, cmd: Command, isWhatsApp = 
         .join('\n')
       const tag = getTag(from)
       const tagLine = tag ? `\n🏷️ Tag: *$${tag}*` : '\n💡 Set a tag: TAG yourname'
-      return `💰 *Your Balances:*\n${balanceLines}${tagLine}\n\n📍 \`${user.address.slice(0, 12)}...\`\n🔗 https://explore.tempo.xyz/address/${user.address}`
+      
+      const welcome = user.isNew ? `🎉 *Welcome to TempoPay!*\nYour wallet is ready.\n\n` : ''
+      return `${welcome}💰 *Your Balances:*\n${balanceLines}${tagLine}\n\n📍 \`${user.address.slice(0, 12)}...\`\n🔗 https://explore.tempo.xyz/address/${user.address}`
     }
 
     case 'SEND': {
@@ -170,6 +172,12 @@ export async function handleCommand(rawFrom: string, cmd: Command, isWhatsApp = 
         recordTransaction(from, 'send', cmd.amount, recipientDisplay, cmd.memo || null, hash)
         updateSpentAmount(from, cmd.amount)
         
+        // Notify recipient (if phone number)
+        if (typeof resolved === 'string') {
+          const memo = cmd.memo ? ` for "${cmd.memo}"` : ''
+          sendNotification(resolved, `💸 You received *$${cmd.amount.toFixed(2)}*${memo}!\n\nFrom: ${from}\n🔗 https://explore.tempo.xyz/tx/${hash}`)
+        }
+        
         return generateReceiptText('send', cmd.amount, recipientDisplay, hash, cmd.memo, 'AlphaUSD')
       } catch (err) {
         const error = err instanceof Error ? err.message : 'Transaction failed'
@@ -193,7 +201,7 @@ export async function handleCommand(rawFrom: string, cmd: Command, isWhatsApp = 
           return generateFailedReceiptText(cmd.amount, `${cmd.recipients.length} people`, `Insufficient balance. You have $${balance.toFixed(2)}. Use FUND $${cmd.amount} to add test funds.`)
         }
         
-        const recipients = await Promise.all(resolvedRecipients.map(p => getOrCreateUser(p)))
+        const recipients = await Promise.all(resolvedRecipients.map(p => getOrCreateUser(p as string)))
         const addresses = recipients.map(r => r.address)
         const each = cmd.amount / cmd.recipients.length
         const hash = await sendBatchPayment(sender.walletId, sender.address, addresses, each, cmd.memo)

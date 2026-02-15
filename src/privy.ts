@@ -28,13 +28,14 @@ export interface UserWithWallet {
   id: string
   walletId: string
   address: string
+  isNew: boolean
 }
 
 export async function getOrCreateUser(phone: string): Promise<UserWithWallet> {
   // Check database first
   const existing = getWallet(phone)
   if (existing) {
-    return { id: phone, walletId: existing.wallet_id, address: existing.address }
+    return { id: phone, walletId: existing.wallet_id, address: existing.address, isNew: false }
   }
   
   // Create new wallet
@@ -47,7 +48,7 @@ export async function getOrCreateUser(phone: string): Promise<UserWithWallet> {
   // Save to database
   saveWallet(phone, wallet.id, wallet.address)
   
-  return { id: phone, walletId: wallet.id, address: wallet.address }
+  return { id: phone, walletId: wallet.id, address: wallet.address, isNew: true }
 }
 
 export function getWalletAddress(user: UserWithWallet): string {
