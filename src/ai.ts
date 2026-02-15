@@ -5,7 +5,7 @@ import { getContactByNickname } from './db'
 const genai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
 const model = genai.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
 
-const SYSTEM_PROMPT = `You are TempoPay, a friendly SMS payment assistant. Parse natural language into payment commands.
+const SYSTEM_PROMPT = `You are BUMP, a friendly SMS payment assistant. Parse natural language into payment commands.
 
 RESPOND WITH JSON ONLY: {"reply": "message", "command": {...} or null}
 

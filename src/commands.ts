@@ -15,7 +15,7 @@ const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_A
 const TWILIO_PHONE = process.env.TWILIO_PHONE_NUMBER!
 const WHATSAPP_NUMBER = process.env.WHATSAPP_NUMBER || `whatsapp:${TWILIO_PHONE}`
 
-const HELP_TEXT = `💸 *TempoPay* - Send money via text!
+const HELP_TEXT = `💸 *BUMP* - Send money via text!
 
 *Commands:*
 • SEND $20 to +1234567890 lunch
@@ -132,7 +132,7 @@ export async function handleCommand(rawFrom: string, cmd: Command, isWhatsApp = 
       const tag = getTag(from)
       const tagLine = tag ? `\n🏷️ Tag: *$${tag}*` : '\n💡 Set a tag: TAG yourname'
       
-      const welcome = user.isNew ? `🎉 *Welcome to TempoPay!*\nYour wallet is ready.\n\n` : ''
+      const welcome = user.isNew ? `🎉 *Welcome to BUMP!*\nYour wallet is ready.\n\n` : ''
       return `${welcome}💰 *Your Balances:*\n${balanceLines}${tagLine}\n\n📍 \`${user.address.slice(0, 12)}...\`\n🔗 https://explore.tempo.xyz/address/${user.address}`
     }
 

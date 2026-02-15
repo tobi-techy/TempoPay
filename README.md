@@ -1,10 +1,10 @@
-# TempoPay 💸
+# BUMP 💸
 
 > **Send money via SMS — no app, no download, no crypto knowledge required.**
 
 Built for the [Canteen x Tempo Hackathon](https://tempo.xyz) | Track 1: Privy Wallets
 
-![TempoPay Demo](https://img.shields.io/badge/Status-Live-brightgreen) ![Tempo](https://img.shields.io/badge/Chain-Tempo-blue) ![Privy](https://img.shields.io/badge/Wallets-Privy-purple)
+![BUMP Demo](https://img.shields.io/badge/Status-Live-brightgreen) ![Tempo](https://img.shields.io/badge/Chain-Tempo-blue) ![Privy](https://img.shields.io/badge/Wallets-Privy-purple)
 
 ## 🎯 Problem
 
@@ -12,7 +12,7 @@ Built for the [Canteen x Tempo Hackathon](https://tempo.xyz) | Track 1: Privy Wa
 
 ## 💡 Solution
 
-**TempoPay** lets anyone send money by texting simple commands. No app download. No seed phrase. No crypto jargon. Just text.
+**BUMP** lets anyone send money by texting simple commands. No app download. No seed phrase. No crypto jargon. Just text.
 
 ```
 SEND $20 to +2348012345678 lunch
@@ -40,7 +40,7 @@ That's it. The recipient gets an SMS notification and can check their balance or
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   User      │     │   Twilio    │     │  TempoPay   │     │   Tempo     │
+│   User      │     │   Twilio    │     │  BUMP   │     │   Tempo     │
 │  (SMS)      │────▶│  Webhook    │────▶│   Server    │────▶│ Blockchain  │
 └─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
                                               │
@@ -74,7 +74,7 @@ That's it. The recipient gets an SMS notification and can check their balance or
 
 ## 🎮 Privy Integration (Track 1)
 
-TempoPay uses Privy's server-side wallet infrastructure:
+BUMP uses Privy's server-side wallet infrastructure:
 
 - **Embedded Wallets**: Users get wallets automatically — no seed phrases
 - **Authorization Keys**: Server signs transactions with key quorum
@@ -110,8 +110,8 @@ const wallet = await privyRequest('/wallets', 'POST', {
 ### Installation
 
 ```bash
-git clone https://github.com/tobi-techy/TempoPay.git
-cd TempoPay
+git clone https://github.com/tobi-techy/BUMP.git
+cd BUMP
 bun install
 ```
 
@@ -172,7 +172,7 @@ Bot: ✅ Added $50 test funds to your wallet!
 
 You: SEND $10 to +2348012345678 lunch
 Bot: ━━━━━━━━━━━━━━━━━━━━
-     📄 TempoPay Receipt
+     📄 BUMP Receipt
      ━━━━━━━━━━━━━━━━━━━━
      💰 Amount: $10.00 AlphaUSD
      👤 To: +2348012345678
@@ -200,7 +200,7 @@ Bot: 💰 Your Balances:
 ## 📁 Project Structure
 
 ```
-tempopay/
+bump/
 ├── index.ts          # Express server & routes
 ├── src/
 │   ├── sms.ts        # Twilio webhook handler
@@ -241,4 +241,4 @@ MIT
 
 ---
 
-**TempoPay** — Banking the unbanked, one text at a time. 📱💸
+**BUMP** — Banking the unbanked, one text at a time. 📱💸
