@@ -9,6 +9,7 @@ export type Command =
   | { type: 'LIMIT'; amount: number }
   | { type: 'QR'; amount?: number; memo?: string }
   | { type: 'FUND'; amount: number }
+  | { type: 'TAG'; tag: string }
   | { type: 'HELP' }
 
 const PHONE_REGEX = /\+?\d{10,15}/g
@@ -33,6 +34,12 @@ export function parseCommand(input: string): Command {
   const fundMatch = text.match(/^FUND\s+\$?([\d.]+)$/i)
   if (fundMatch) {
     return { type: 'FUND', amount: parseFloat(fundMatch[1]!) }
+  }
+
+  // TAG <username> - set your payment tag
+  const tagMatch = text.match(/^TAG\s+(\w+)$/i)
+  if (tagMatch) {
+    return { type: 'TAG', tag: tagMatch[1]! }
   }
 
   // QR [$amount] [memo]
@@ -69,21 +76,20 @@ export function parseCommand(input: string): Command {
     }
   }
 
-  // SEND $<amount> [BETA] to <phone|@nickname> [memo]
-  const sendMatch = text.match(/^SEND\s+\$?([\d.]+)\s*(BETA)?\s*(?:to\s+)?(@\w+|\+?\d{10,15})\s*(.*)?$/i)
-  if (sendMatch && sendMatch[3]) {
+  // SEND $<amount> to <phone|@nickname|$tag> [memo]
+  const sendMatch = text.match(/^SEND\s+\$?([\d.]+)\s*(?:to\s+)?(\$\w+|@\w+|\+?\d{10,15})\s*(.*)?$/i)
+  if (sendMatch && sendMatch[2]) {
     return {
       type: 'SEND',
       amount: parseFloat(sendMatch[1]!),
-      currency: sendMatch[2]?.toUpperCase(),
-      recipient: sendMatch[3],
-      memo: sendMatch[4]?.trim() || ''
+      recipient: sendMatch[2],
+      memo: sendMatch[3]?.trim() || ''
     }
   }
 
-  const splitMatch = text.match(/^SPLIT\s+\$?([\d.]+)\s+(?:to\s+)?([\d,+\s@\w]+)\s*(.*)?$/i)
+  const splitMatch = text.match(/^SPLIT\s+\$?([\d.]+)\s+(?:to\s+)?([\d,+\s@\w$]+)\s*(.*)?$/i)
   if (splitMatch) {
-    const phones = splitMatch[2]!.match(/(@\w+|\+?\d{10,15})/g)
+    const phones = splitMatch[2]!.match(/(\$\w+|@\w+|\+?\d{10,15})/g)
     if (!phones || phones.length < 2) {
       throw new Error('SPLIT requires at least 2 recipients')
     }

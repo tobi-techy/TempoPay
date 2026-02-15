@@ -5,7 +5,8 @@ import {
   createRequest, getRequest, markRequestPaid, 
   recordTransaction, getRecentTransactions,
   addContact, getContactByNickname,
-  setSpendingLimit, canSpend, updateSpentAmount
+  setSpendingLimit, canSpend, updateSpentAmount,
+  setTag, getWalletByTag, getTag
 } from './db'
 import { getTxLink, generateReceiptText, generateFailedReceiptText, generateQRFile } from './utils'
 import twilio from 'twilio'
@@ -18,13 +19,14 @@ const HELP_TEXT = `💸 *TempoPay* - Send money via text!
 
 *Commands:*
 • SEND $20 to +1234567890 lunch
-• SEND $20 to @mom _(contact)_
-• SEND $20 BETA to +123... _(FX swap)_
+• SEND $20 to @mom _(saved contact)_
+• SEND $20 to $john _(payment tag)_
 • SPLIT $60 to +123,+456,+789 dinner
 • REQUEST $50 from +1234567890 rent
 • PAY 1 _(pay request #1)_
 • BAL _(check balance)_
 • HISTORY _(recent payments)_
+• TAG myname _(set your $tag)_
 • ADD @mom +1234567890 _(save contact)_
 • LIMIT $100/day _(spending limit)_
 • QR $50 coffee _(payment QR code)_
@@ -46,7 +48,15 @@ export async function handleCommand(rawFrom: string, cmd: Command, isWhatsApp = 
     } catch {}
   }
 
-  const resolveRecipient = (recipient: string): string => {
+  const resolveRecipient = (recipient: string): string | { address: string; tag: string } => {
+    // $tag - payment tag
+    if (recipient.startsWith('$')) {
+      const tag = recipient.slice(1)
+      const wallet = getWalletByTag(tag)
+      if (!wallet) throw new Error(`Tag $${tag} not found`)
+      return { address: wallet.address, tag }
+    }
+    // @nickname - saved contact
     if (recipient.startsWith('@')) {
       const nickname = recipient.slice(1)
       const phone = getContactByNickname(from, nickname)
@@ -61,10 +71,26 @@ export async function handleCommand(rawFrom: string, cmd: Command, isWhatsApp = 
       return HELP_TEXT
 
     case 'FUND': {
-      // Fund user wallet from sponsor (for testing)
       const user = await getOrCreateUser(from)
       const hash = await fundUserWallet(user.address, cmd.amount)
       return `✅ Added *$${cmd.amount}* test funds to your wallet!\n🔗 ${getTxLink(hash)}`
+    }
+
+    case 'TAG': {
+      await getOrCreateUser(from) // Ensure wallet exists
+      const tag = cmd.tag.toLowerCase()
+      if (tag.length < 3 || tag.length > 15) {
+        return '❌ Tag must be 3-15 characters'
+      }
+      if (!/^[a-z0-9_]+$/.test(tag)) {
+        return '❌ Tag can only contain letters, numbers, and underscores'
+      }
+      const existing = getWalletByTag(tag)
+      if (existing) {
+        return `❌ Tag $${tag} is already taken`
+      }
+      setTag(from, tag)
+      return `✅ Your tag is now *$${tag}*\n\nAnyone can send you money with:\nSEND $20 to $${tag}`
     }
 
     case 'QR': {
@@ -103,7 +129,9 @@ export async function handleCommand(rawFrom: string, cmd: Command, isWhatsApp = 
       const balanceLines = Object.entries(balances)
         .map(([token, bal]) => `• ${token}: *$${parseFloat(bal).toFixed(2)}*`)
         .join('\n')
-      return `💰 *Your Balances:*\n${balanceLines}\n\n📍 \`${user.address.slice(0, 12)}...\`\n🔗 https://explore.tempo.xyz/address/${user.address}`
+      const tag = getTag(from)
+      const tagLine = tag ? `\n🏷️ Tag: *$${tag}*` : '\n💡 Set a tag: TAG yourname'
+      return `💰 *Your Balances:*\n${balanceLines}${tagLine}\n\n📍 \`${user.address.slice(0, 12)}...\`\n🔗 https://explore.tempo.xyz/address/${user.address}`
     }
 
     case 'SEND': {
@@ -111,33 +139,41 @@ export async function handleCommand(rawFrom: string, cmd: Command, isWhatsApp = 
         return generateFailedReceiptText(cmd.amount, cmd.recipient, 'Daily spending limit exceeded')
       }
 
-      const recipientPhone = resolveRecipient(cmd.recipient)
+      const resolved = resolveRecipient(cmd.recipient)
       
       try {
-        const [sender, recipient] = await Promise.all([
-          getOrCreateUser(from),
-          getOrCreateUser(recipientPhone)
-        ])
+        const sender = await getOrCreateUser(from)
+        
+        let recipientAddress: string
+        let recipientDisplay: string
+        
+        if (typeof resolved === 'object') {
+          // Tag recipient - already have address
+          recipientAddress = resolved.address
+          recipientDisplay = `$${resolved.tag}`
+        } else {
+          // Phone recipient - get/create wallet
+          const recipient = await getOrCreateUser(resolved)
+          recipientAddress = recipient.address
+          recipientDisplay = resolved
+        }
         
         // Check sender has sufficient balance
         const balances = await getAllBalances(sender.address)
-        const balance = parseFloat(balances.AlphaUSD)
+        const balance = parseFloat(balances.AlphaUSD as string)
         if (balance < cmd.amount) {
-          return generateFailedReceiptText(cmd.amount, recipientPhone, `Insufficient balance. You have $${balance.toFixed(2)}. Use FUND $${cmd.amount} to add test funds.`)
+          return generateFailedReceiptText(cmd.amount, recipientDisplay, `Insufficient balance. You have $${balance.toFixed(2)}. Use FUND $${cmd.amount} to add test funds.`)
         }
         
-        let hash: string
-        const currency = 'AlphaUSD'
+        const hash = await sendPayment(sender.walletId, sender.address, recipientAddress, cmd.amount, cmd.memo)
         
-        hash = await sendPayment(sender.walletId, sender.address, recipient.address, cmd.amount, cmd.memo)
-        
-        recordTransaction(from, 'send', cmd.amount, recipientPhone, cmd.memo || null, hash)
+        recordTransaction(from, 'send', cmd.amount, recipientDisplay, cmd.memo || null, hash)
         updateSpentAmount(from, cmd.amount)
         
-        return generateReceiptText('send', cmd.amount, recipientPhone, hash, cmd.memo, currency)
+        return generateReceiptText('send', cmd.amount, recipientDisplay, hash, cmd.memo, 'AlphaUSD')
       } catch (err) {
         const error = err instanceof Error ? err.message : 'Transaction failed'
-        return generateFailedReceiptText(cmd.amount, recipientPhone, error)
+        return generateFailedReceiptText(cmd.amount, recipientDisplay, error)
       }
     }
 
@@ -152,7 +188,7 @@ export async function handleCommand(rawFrom: string, cmd: Command, isWhatsApp = 
         
         // Check sender has sufficient balance
         const balances = await getAllBalances(sender.address)
-        const balance = parseFloat(balances.AlphaUSD)
+        const balance = parseFloat(balances.AlphaUSD as string)
         if (balance < cmd.amount) {
           return generateFailedReceiptText(cmd.amount, `${cmd.recipients.length} people`, `Insufficient balance. You have $${balance.toFixed(2)}. Use FUND $${cmd.amount} to add test funds.`)
         }

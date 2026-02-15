@@ -53,6 +53,7 @@ db.run(`
     phone TEXT PRIMARY KEY,
     wallet_id TEXT NOT NULL,
     address TEXT NOT NULL,
+    tag TEXT UNIQUE,
     created_at INTEGER DEFAULT (unixepoch())
   )
 `)
@@ -197,6 +198,7 @@ export interface WalletRecord {
   phone: string
   wallet_id: string
   address: string
+  tag: string | null
 }
 
 export function saveWallet(phone: string, walletId: string, address: string) {
@@ -208,4 +210,23 @@ export function saveWallet(phone: string, walletId: string, address: string) {
 
 export function getWallet(phone: string): WalletRecord | null {
   return db.query('SELECT * FROM wallets WHERE phone = ?').get(phone) as WalletRecord | null
+}
+
+// Tag functions
+export function setTag(phone: string, tag: string): boolean {
+  try {
+    db.run('UPDATE wallets SET tag = ? WHERE phone = ?', [tag.toLowerCase(), phone])
+    return true
+  } catch {
+    return false // Tag already taken
+  }
+}
+
+export function getWalletByTag(tag: string): WalletRecord | null {
+  return db.query('SELECT * FROM wallets WHERE tag = ?').get(tag.toLowerCase()) as WalletRecord | null
+}
+
+export function getTag(phone: string): string | null {
+  const wallet = getWallet(phone)
+  return wallet?.tag || null
 }

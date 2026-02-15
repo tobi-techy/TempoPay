@@ -12,6 +12,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@noble/curves": "^2.0.1",
     "@noble/hashes": "^2.0.1",
     "@privy-io/server-auth": "^1.32.5",
