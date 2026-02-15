@@ -58,6 +58,17 @@ db.run(`
   )
 `)
 
+db.run(`
+  CREATE TABLE IF NOT EXISTS saved_addresses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    phone TEXT NOT NULL,
+    nickname TEXT NOT NULL,
+    address TEXT NOT NULL,
+    created_at INTEGER DEFAULT (unixepoch()),
+    UNIQUE(phone, nickname)
+  )
+`)
+
 export interface PaymentRequest {
   id: number
   from_phone: string
@@ -229,4 +240,19 @@ export function getWalletByTag(tag: string): WalletRecord | null {
 export function getTag(phone: string): string | null {
   const wallet = getWallet(phone)
   return wallet?.tag || null
+}
+
+
+// Saved address functions
+export function saveAddress(phone: string, nickname: string, address: string) {
+  db.run(
+    'INSERT OR REPLACE INTO saved_addresses (phone, nickname, address) VALUES (?, ?, ?)',
+    [phone, nickname.toLowerCase(), address.toLowerCase()]
+  )
+}
+
+export function getSavedAddress(phone: string, nickname: string): string | null {
+  const result = db.query('SELECT address FROM saved_addresses WHERE phone = ? AND nickname = ?')
+    .get(phone, nickname.toLowerCase()) as { address: string } | null
+  return result?.address || null
 }

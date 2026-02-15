@@ -26,7 +26,7 @@ app.get('/pay', async (req, res) => {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>TempoPay</title>
+      <title>BUMP</title>
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <style>
         body { font-family: -apple-system, sans-serif; max-width: 400px; margin: 40px auto; padding: 20px; }
@@ -38,7 +38,7 @@ app.get('/pay', async (req, res) => {
       </style>
     </head>
     <body>
-      <h1>💸 TempoPay</h1>
+      <h1>💸 BUMP</h1>
       <div class="amount">$${amount || '0.00'}</div>
       ${memo ? `<div class="memo">For: ${memo}</div>` : ''}
       <div class="info">
@@ -48,7 +48,7 @@ app.get('/pay', async (req, res) => {
       <p>Text this to pay:</p>
       <code>SEND $${amount || '[amount]'} to ${to}${memo ? ` ${memo}` : ''}</code>
       <p style="margin-top: 20px; color: #666; font-size: 14px;">
-        Send to your TempoPay number to complete payment.
+        Send to your Bump number to complete payment.
       </p>
     </body>
     </html>
@@ -58,4 +58,4 @@ app.get('/pay', async (req, res) => {
 app.get('/health', (_, res) => res.send('OK'))
 
 const PORT = process.env.PORT || 3000
-app.listen(PORT, () => console.log(`TempoPay running on port ${PORT}`))
+app.listen(PORT, () => console.log(`BUMP running on port ${PORT}`))

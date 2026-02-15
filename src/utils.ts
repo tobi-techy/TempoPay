@@ -81,7 +81,7 @@ export function generateReceiptText(
   
   const lines = [
     `━━━━━━━━━━━━━━━━━━━━`,
-    `📄 *TempoPay Receipt*`,
+    `📄 *BUMP Receipt*`,
     `━━━━━━━━━━━━━━━━━━━━`,
     ``,
     `💰 Amount: *$${amount.toFixed(2)} ${currency}*`,
@@ -107,7 +107,7 @@ export function generateFailedReceiptText(
   
   return [
     `━━━━━━━━━━━━━━━━━━━━`,
-    `📄 *TempoPay Receipt*`,
+    `📄 *BUMP Receipt*`,
     `━━━━━━━━━━━━━━━━━━━━`,
     ``,
     `💰 Amount: *$${amount.toFixed(2)}*`,

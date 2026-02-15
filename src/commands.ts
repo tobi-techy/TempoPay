@@ -6,7 +6,8 @@ import {
   recordTransaction, getRecentTransactions,
   addContact, getContactByNickname,
   setSpendingLimit, canSpend, updateSpentAmount,
-  setTag, getWalletByTag, getTag
+  setTag, getWalletByTag, getTag,
+  saveAddress, getSavedAddress
 } from './db'
 import { getTxLink, generateReceiptText, generateFailedReceiptText, generateQRFile } from './utils'
 import twilio from 'twilio'
@@ -21,14 +22,13 @@ const HELP_TEXT = `💸 *BUMP* - Send money via text!
 • SEND $20 to +1234567890 lunch
 • SEND $20 to @mom _(saved contact)_
 • SEND $20 to $john _(payment tag)_
-• SPLIT $60 to +123,+456,+789 dinner
-• REQUEST $50 from +1234567890 rent
-• PAY 1 _(pay request #1)_
+• SEND $20 to 0x123... _(wallet address)_
 • BAL _(check balance)_
-• HISTORY _(recent payments)_
+• ADDR _(get your wallet address)_
 • TAG myname _(set your $tag)_
+• SAVE @vitalik 0x123... _(save address)_
 • ADD @mom +1234567890 _(save contact)_
-• LIMIT $100/day _(spending limit)_
+• HISTORY _(recent payments)_
 • QR $50 coffee _(payment QR code)_
 • FUND $100 _(add test funds)_
 
@@ -56,12 +56,20 @@ export async function handleCommand(rawFrom: string, cmd: Command, isWhatsApp = 
       if (!wallet) throw new Error(`Tag $${tag} not found`)
       return { address: wallet.address, tag }
     }
-    // @nickname - saved contact
+    // @nickname - saved contact or address
     if (recipient.startsWith('@')) {
       const nickname = recipient.slice(1)
+      // Check saved addresses first
+      const savedAddr = getSavedAddress(from, nickname)
+      if (savedAddr) return { address: savedAddr, tag: `@${nickname}` }
+      // Then check phone contacts
       const phone = getContactByNickname(from, nickname)
-      if (!phone) throw new Error(`Contact @${nickname} not found. Use ADD @${nickname} +phone`)
+      if (!phone) throw new Error(`Contact @${nickname} not found`)
       return phone
+    }
+    // 0x address - direct wallet
+    if (recipient.startsWith('0x') && recipient.length === 42) {
+      return { address: recipient.toLowerCase(), tag: recipient.slice(0, 10) + '...' }
     }
     return normalizePhone(recipient)
   }
@@ -70,10 +78,20 @@ export async function handleCommand(rawFrom: string, cmd: Command, isWhatsApp = 
     case 'HELP':
       return HELP_TEXT
 
+    case 'ADDR': {
+      const user = await getOrCreateUser(from)
+      return `📍 *Your Wallet Address:*\n\n\`${user.address}\`\n\n🔗 https://explore.tempo.xyz/address/${user.address}`
+    }
+
     case 'FUND': {
       const user = await getOrCreateUser(from)
       const hash = await fundUserWallet(user.address, cmd.amount)
       return `✅ Added *$${cmd.amount}* test funds to your wallet!\n🔗 ${getTxLink(hash)}`
+    }
+
+    case 'SAVE': {
+      saveAddress(from, cmd.nickname, cmd.address)
+      return `✅ Saved *@${cmd.nickname}* → \`${cmd.address.slice(0, 10)}...\`\n\nSend with: SEND $20 to @${cmd.nickname}`
     }
 
     case 'TAG': {

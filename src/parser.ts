@@ -4,8 +4,10 @@ export type Command =
   | { type: 'REQUEST'; amount: number; from: string; memo: string }
   | { type: 'PAY'; requestId: number }
   | { type: 'BAL' }
+  | { type: 'ADDR' }
   | { type: 'HISTORY' }
   | { type: 'ADD'; nickname: string; phone: string }
+  | { type: 'SAVE'; nickname: string; address: string }
   | { type: 'LIMIT'; amount: number }
   | { type: 'QR'; amount?: number; memo?: string }
   | { type: 'FUND'; amount: number }
@@ -13,6 +15,7 @@ export type Command =
   | { type: 'HELP' }
 
 const PHONE_REGEX = /\+?\d{10,15}/g
+const ADDR_REGEX = /0x[a-fA-F0-9]{40}/
 
 export function parseCommand(input: string): Command {
   const text = input.trim()
@@ -20,6 +23,13 @@ export function parseCommand(input: string): Command {
 
   if (upper === 'BAL' || upper === 'BALANCE') {
     return { type: 'BAL' }
+  }
+
+  // ADDR variations
+  if (upper === 'ADDR' || upper === 'ADDRESS' || upper === 'WALLET' || 
+      upper.includes('MY WALLET') || upper.includes('MY ADDRESS') ||
+      upper.includes('WALLET ADDRESS')) {
+    return { type: 'ADDR' }
   }
 
   if (upper === 'HISTORY') {
@@ -52,6 +62,11 @@ export function parseCommand(input: string): Command {
     }
   }
 
+  // ADDR - get your wallet address
+  if (upper === 'ADDR' || upper === 'ADDRESS' || upper === 'WALLET') {
+    return { type: 'ADDR' }
+  }
+
   const payMatch = upper.match(/^PAY\s+(\d+)$/)
   if (payMatch && payMatch[1]) {
     return { type: 'PAY', requestId: parseInt(payMatch[1]) }
@@ -67,6 +82,16 @@ export function parseCommand(input: string): Command {
     }
   }
 
+  // SAVE @<nickname> <address> - save a wallet address
+  const saveMatch = text.match(/^SAVE\s+@(\w+)\s+(0x[a-fA-F0-9]{40})$/i)
+  if (saveMatch) {
+    return {
+      type: 'SAVE',
+      nickname: saveMatch[1]!,
+      address: saveMatch[2]!
+    }
+  }
+
   // LIMIT $<amount>/day
   const limitMatch = text.match(/^LIMIT\s+\$?([\d.]+)(?:\/day)?$/i)
   if (limitMatch) {
@@ -76,8 +101,8 @@ export function parseCommand(input: string): Command {
     }
   }
 
-  // SEND $<amount> to <phone|@nickname|$tag> [memo]
-  const sendMatch = text.match(/^SEND\s+\$?([\d.]+)\s*(?:to\s+)?(\$\w+|@\w+|\+?\d{10,15})\s*(.*)?$/i)
+  // SEND $<amount> to <phone|@nickname|$tag|0xaddress> [memo]
+  const sendMatch = text.match(/^SEND\s+\$?([\d.]+)\s*(?:to\s+)?(\$\w+|@\w+|0x[a-fA-F0-9]{40}|\+?\d{10,15})\s*(.*)?$/i)
   if (sendMatch && sendMatch[2]) {
     return {
       type: 'SEND',
