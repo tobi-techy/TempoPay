@@ -1,5 +1,9 @@
+import { saveWallet, getWallet } from './db'
+
 const PRIVY_APP_ID = process.env.PRIVY_APP_ID!
 const PRIVY_APP_SECRET = process.env.PRIVY_APP_SECRET!
+const POLICY_ID = 'nqzlbcabb02v3payjbt5c8v5'
+const KEY_QUORUM_ID = 'comqvuhhyh3z554rtmpeadjt'
 
 const authHeader = 'Basic ' + Buffer.from(`${PRIVY_APP_ID}:${PRIVY_APP_SECRET}`).toString('base64')
 
@@ -20,25 +24,36 @@ async function privyRequest(endpoint: string, method = 'GET', body?: object) {
   return res.json()
 }
 
-export async function getOrCreateUser(phone: string) {
-  // Try to find existing user by phone
-  try {
-    const user = await privyRequest('/users/phone/number', 'POST', { number: phone })
-    return user
-  } catch {
-    // User not found, create new one with wallet
-    const user = await privyRequest('/users', 'POST', {
-      linked_accounts: [{ type: 'phone', number: phone }],
-      create_ethereum_wallet: true
-    })
-    return user
-  }
+export interface UserWithWallet {
+  id: string
+  walletId: string
+  address: string
 }
 
-export function getWalletAddress(user: any): string {
-  const wallet = user.linked_accounts?.find(
-    (a: any) => a.type === 'wallet' && a.chain_type === 'ethereum'
-  )
-  if (!wallet?.address) throw new Error('No wallet found for user')
-  return wallet.address
+export async function getOrCreateUser(phone: string): Promise<UserWithWallet> {
+  // Check database first
+  const existing = getWallet(phone)
+  if (existing) {
+    return { id: phone, walletId: existing.wallet_id, address: existing.address }
+  }
+  
+  // Create new wallet
+  const wallet = await privyRequest('/wallets', 'POST', {
+    chain_type: 'ethereum',
+    owner_id: KEY_QUORUM_ID,
+    policy_ids: [POLICY_ID]
+  })
+  
+  // Save to database
+  saveWallet(phone, wallet.id, wallet.address)
+  
+  return { id: phone, walletId: wallet.id, address: wallet.address }
+}
+
+export function getWalletAddress(user: UserWithWallet): string {
+  return user.address
+}
+
+export function getWalletId(user: UserWithWallet): string {
+  return user.walletId
 }
